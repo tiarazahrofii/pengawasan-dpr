@@ -1,72 +1,120 @@
+// lib/home_page.dart
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'models/user.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'models/agenda.dart';
 import 'detail_page.dart';
+import 'admin_page.dart';
 
-class HomePage extends StatelessWidget {
-  final User user;
+class HomePage extends StatefulWidget {
+  final String username;
+  const HomePage({super.key, required this.username});
 
-  HomePage({super.key, required this.user});
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
 
-  final Map<String, List<Agenda>> agendaData = {
-    "Masyarakat Umum": [
-      Agenda(judul: "Sidang Paripurna DPR", detail: "Laporan hasil sidang paripurna terbuka untuk masyarakat."),
-      Agenda(judul: "Informasi RUU Baru", detail: "RUU baru yang sedang dibahas DPR."),
-    ],
-    "Walikota Madiun": [
-      Agenda(judul: "Sidang Paripurna DPR", detail: "Catatan internal untuk Walikota mengenai hasil sidang."),
-      Agenda(judul: "Evaluasi Kinerja DPR", detail: "Laporan kinerja DPR bulan ini untuk Walikota."),
-    ],
-    "Presiden": [
-      Agenda(judul: "Laporan Kinerja DPR", detail: "Detail laporan resmi DPR kepada Presiden."),
-      Agenda(judul: "Undangan Sidang Khusus", detail: "Surat undangan sidang khusus DPR."),
-    ],
-  };
+class _HomePageState extends State<HomePage> {
+  List<Agenda> _agendaList = [];
+  final String _prefsKey = 'agendas';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAgendas();
+  }
+
+  Future<void> _loadAgendas() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonString = prefs.getString(_prefsKey);
+    if (jsonString != null && jsonString.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(jsonString) as List<dynamic>;
+        setState(() {
+          _agendaList = decoded.map((e) => Agenda.fromJson(Map<String, dynamic>.from(e))).toList();
+        });
+        return;
+      } catch (_) {
+        // fallthrough to defaults
+      }
+    }
+
+    // defaults if no saved agendas
+    final defaults = [
+      Agenda(judul: 'Rapat Paripurna DPR', deskripsi: 'Pembahasan RUU Perlindungan Data Pribadi', tanggal: '10 Oktober 2025', lokasi: 'Gedung DPR'),
+      Agenda(judul: 'Rapat Komisi III', deskripsi: 'Koordinasi bersama Kemenkumham', tanggal: '12 Oktober 2025', lokasi: 'Gedung Nusantara'),
+    ];
+    setState(() => _agendaList = defaults);
+    // save defaults so admin can edit later
+    await prefs.setString(_prefsKey, jsonEncode(_agendaList.map((a) => a.toJson()).toList()));
+  }
+
+  String getRole(String username) {
+    switch (username.toLowerCase()) {
+      case 'admin':
+        return 'Admin';
+      case 'walikota':
+        return 'Walikota';
+      case 'presiden':
+        return 'Presiden';
+      case 'masyarakat':
+        return 'Masyarakat';
+      default:
+        return 'Tamu';
+    }
+  }
+
+  Future<void> _openAdmin() async {
+    // only admin allowed (HomePage shows button only if admin)
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPage()));
+    // after admin page closed, reload agendas (so changes appear)
+    await _loadAgendas();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final List<Agenda> agendaList = agendaData[user.role] ?? [];
+    final role = getRole(widget.username);
 
     return Scaffold(
-      backgroundColor: Colors.pink[50],
       appBar: AppBar(
-        title: const Text("Pengawasan DPR"),
-        backgroundColor: Colors.pink,
-        leading: Image.asset("assets/logo.jpg"),
+        title: Text('Pengawasan DPR - $role'),
+        backgroundColor: const Color(0xFF800000),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(
-            "Selamat datang ${user.username},\n(${user.role})",
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 20),
-          const Text("Agenda DPR:", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          Text('Selamat datang, ${widget.username}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF800000))),
+          const SizedBox(height: 8),
+          const Text('Daftar Agenda DPR:'),
           const SizedBox(height: 10),
           Expanded(
-            child: ListView.builder(
-              itemCount: agendaList.length,
-              itemBuilder: (context, index) {
-                return Card(
-                  child: ListTile(
-                    title: Text(agendaList[index].judul),
-                    trailing: const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.pink),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => DetailPage(agenda: agendaList[index]),
+            child: _agendaList.isEmpty
+                ? const Center(child: Text('Belum ada agenda'))
+                : ListView.builder(
+                    itemCount: _agendaList.length,
+                    itemBuilder: (ctx, i) {
+                      final a = _agendaList[i];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(a.judul),
+                          subtitle: Text('${a.tanggal} • ${a.lokasi}'),
+                          onTap: () => Navigator.push(ctx, MaterialPageRoute(builder: (_) => DetailPage(agenda: a))),
                         ),
                       );
                     },
                   ),
-                );
-              },
-            ),
-          )
+          ),
         ]),
       ),
+      floatingActionButton: getRole(widget.username) == 'Admin'
+          ? FloatingActionButton(
+              onPressed: _openAdmin,
+              backgroundColor: const Color(0xFF800000),
+              child: const Icon(Icons.admin_panel_settings),
+            )
+          : null,
     );
   }
 }

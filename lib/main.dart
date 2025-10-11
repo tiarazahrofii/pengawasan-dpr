@@ -12,6 +12,11 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      title: 'Pengawasan DPR',
+      theme: ThemeData(
+        primarySwatch: Colors.pink,
+        useMaterial3: true,
+      ),
       home: const SplashScreen(),
     );
   }
