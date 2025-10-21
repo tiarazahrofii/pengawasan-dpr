@@ -1,9 +1,11 @@
-// lib/admin_page.dart
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'models/agenda.dart';
+
+const Color primaryRed = Color(0xFFE53935);
+const Color darkText = Color(0xFF212121);
+const Color lightBackground = Color(0xFFFAFAFA);
 
 class AdminPage extends StatefulWidget {
   const AdminPage({super.key});
@@ -13,75 +15,83 @@ class AdminPage extends StatefulWidget {
 }
 
 class _AdminPageState extends State<AdminPage> {
-  List<Agenda> _list = [];
-  final _prefsKey = 'agendas';
+  final TextEditingController _titleController = TextEditingController();
+  final TextEditingController _descController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _budgetController = TextEditingController();
+  final TextEditingController _imageController = TextEditingController();
+  final String _prefsKey = 'agendas';
+  List<Map<String, dynamic>> _agendaDataList = [];
 
   @override
   void initState() {
     super.initState();
-    _loadFromPrefs();
+    _loadAgendas();
   }
 
-  Future<void> _loadFromPrefs() async {
+  Future<void> _loadAgendas() async {
     final prefs = await SharedPreferences.getInstance();
     final jsonString = prefs.getString(_prefsKey);
     if (jsonString != null && jsonString.isNotEmpty) {
-      try {
-        final decoded = jsonDecode(jsonString) as List<dynamic>;
-        _list = decoded.map((e) => Agenda.fromJson(Map<String, dynamic>.from(e))).toList();
-      } catch (_) {
-        _list = [];
-      }
-    } else {
-      _list = [];
+      final decoded = jsonDecode(jsonString) as List<dynamic>;
+      setState(() {
+        _agendaDataList = decoded.map((e) => Map<String, dynamic>.from(e)).toList();
+      });
     }
+  }
+
+  Future<void> _saveAgendas() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, jsonEncode(_agendaDataList));
     setState(() {});
   }
 
-  Future<void> _saveToPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    final encoded = jsonEncode(_list.map((a) => a.toJson()).toList());
-    await prefs.setString(_prefsKey, encoded);
-  }
-
-  void _showAddDialog() {
-    final t1 = TextEditingController();
-    final t2 = TextEditingController();
-    final t3 = TextEditingController();
-    final t4 = TextEditingController();
-    final t5 = TextEditingController();
-
+  void _addAgenda() {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Tambah Agenda'),
+        title: const Text('Tambah Agenda Baru'),
         content: SingleChildScrollView(
           child: Column(
             children: [
-              TextField(controller: t1, decoration: const InputDecoration(labelText: 'Judul')),
-              TextField(controller: t2, decoration: const InputDecoration(labelText: 'Deskripsi')),
-              TextField(controller: t3, decoration: const InputDecoration(labelText: 'Tanggal')),
-              TextField(controller: t4, decoration: const InputDecoration(labelText: 'Lokasi (opsional)')),
-              TextField(controller: t5, decoration: const InputDecoration(labelText: 'Link (opsional)')),
+              _buildTextField(_titleController, 'Judul'),
+              const SizedBox(height: 8),
+              _buildTextField(_descController, 'Deskripsi'),
+              const SizedBox(height: 8),
+              _buildTextField(_dateController, 'Tanggal'),
+              const SizedBox(height: 8),
+              _buildTextField(_locationController, 'Lokasi'),
+              const SizedBox(height: 8),
+              _buildTextField(_budgetController, 'Anggaran (Rp)', isNumber: true),
+              const SizedBox(height: 8),
+              _buildTextField(_imageController, 'URL Gambar'),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Batal'),
+          ),
           ElevatedButton(
-            onPressed: () async {
-              final newAgenda = Agenda(
-                judul: t1.text.trim(),
-                deskripsi: t2.text.trim(),
-                tanggal: t3.text.trim(),
-                lokasi: t4.text.trim(),
-                link: t5.text.trim(),
-              );
-              setState(() => _list.add(newAgenda));
-              await _saveToPrefs();
+            onPressed: () {
+              if (_titleController.text.isEmpty || _descController.text.isEmpty) return;
+              _agendaDataList.add({
+                'judul': _titleController.text,
+                'deskripsi': _descController.text,
+                'tanggal': _dateController.text,
+                'lokasi': _locationController.text,
+                'anggaran': int.tryParse(_budgetController.text) ?? 0,
+                'image': _imageController.text.isNotEmpty
+                    ? _imageController.text
+                    : 'https://picsum.photos/400/200',
+                'rating': 5,
+              });
+              _saveAgendas();
+              _clearControllers();
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800000)),
             child: const Text('Simpan'),
           ),
         ],
@@ -89,111 +99,82 @@ class _AdminPageState extends State<AdminPage> {
     );
   }
 
-  void _editDialog(int index) {
-    final a = _list[index];
-    final t1 = TextEditingController(text: a.judul);
-    final t2 = TextEditingController(text: a.deskripsi);
-    final t3 = TextEditingController(text: a.tanggal);
-    final t4 = TextEditingController(text: a.lokasi);
-    final t5 = TextEditingController(text: a.link);
+  void _clearControllers() {
+    _titleController.clear();
+    _descController.clear();
+    _dateController.clear();
+    _locationController.clear();
+    _budgetController.clear();
+    _imageController.clear();
+  }
 
+  Widget _buildTextField(TextEditingController controller, String label, {bool isNumber = false}) {
+    return TextField(
+      controller: controller,
+      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  void _deleteAgenda(int index) {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Edit Agenda'),
-        content: SingleChildScrollView(
-          child: Column(children: [
-            TextField(controller: t1, decoration: const InputDecoration(labelText: 'Judul')),
-            TextField(controller: t2, decoration: const InputDecoration(labelText: 'Deskripsi')),
-            TextField(controller: t3, decoration: const InputDecoration(labelText: 'Tanggal')),
-            TextField(controller: t4, decoration: const InputDecoration(labelText: 'Lokasi (opsional)')),
-            TextField(controller: t5, decoration: const InputDecoration(labelText: 'Link (opsional)')),
-          ]),
-        ),
+        title: const Text('Hapus Agenda?'),
+        content: const Text('Apakah Anda yakin ingin menghapus agenda ini?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context), child: const Text('Batal')),
           ElevatedButton(
-            onPressed: () async {
-              setState(() {
-                _list[index] = Agenda(
-                  judul: t1.text.trim(),
-                  deskripsi: t2.text.trim(),
-                  tanggal: t3.text.trim(),
-                  lokasi: t4.text.trim(),
-                  link: t5.text.trim(),
-                );
-              });
-              await _saveToPrefs();
+            onPressed: () {
+              _agendaDataList.removeAt(index);
+              _saveAgendas();
               Navigator.pop(context);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF800000)),
-            child: const Text('Update'),
+            child: const Text('Hapus'),
           ),
         ],
       ),
     );
   }
 
-  Future<void> _delete(int index) async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Hapus agenda?'),
-        content: const Text('Yakin ingin menghapus agenda ini?'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Hapus')),
-        ],
-      ),
-    );
-    if (ok == true) {
-      setState(() => _list.removeAt(index));
-      await _saveToPrefs();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: lightBackground,
       appBar: AppBar(
-        title: const Text('Panel Admin - DPR'),
-        backgroundColor: const Color(0xFF800000),
+        title: const Text('Admin - Kelola Agenda'),
+        backgroundColor: primaryRed,
       ),
-      body: _list.isEmpty
-          ? Center(
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text('Belum ada agenda.'),
-                const SizedBox(height: 12),
-                ElevatedButton(onPressed: _showAddDialog, child: const Text('Tambah Agenda')),
-              ]),
-            )
-          : ListView.builder(
-              itemCount: _list.length,
-              itemBuilder: (context, i) {
-                final a = _list[i];
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 10),
-                  child: ListTile(
-                    title: Text(a.judul),
-                    subtitle: Text('${a.tanggal} • ${a.lokasi}\n${a.deskripsi}', maxLines: 3, overflow: TextOverflow.ellipsis),
-                    isThreeLine: true,
-                    trailing: PopupMenuButton<String>(
-                      onSelected: (v) {
-                        if (v == 'edit') _editDialog(i);
-                        if (v == 'hapus') _delete(i);
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(value: 'hapus', child: Text('Hapus')),
-                      ],
-                    ),
-                  ),
-                );
-              },
+      body: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _agendaDataList.length,
+        itemBuilder: (context, index) {
+          final agenda = _agendaDataList[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            elevation: 3,
+            child: ListTile(
+              leading: Image.network(
+                agenda['image'] ?? 'https://picsum.photos/100/60',
+                width: 80,
+                fit: BoxFit.cover,
+              ),
+              title: Text(agenda['judul'] ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+              subtitle: Text(agenda['deskripsi'] ?? ''),
+              trailing: IconButton(
+                icon: const Icon(Icons.delete, color: Colors.red),
+                onPressed: () => _deleteAgenda(index),
+              ),
             ),
+          );
+        },
+      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _showAddDialog,
-        backgroundColor: const Color(0xFF800000),
+        onPressed: _addAgenda,
+        backgroundColor: primaryRed,
         child: const Icon(Icons.add),
       ),
     );

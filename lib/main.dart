@@ -11,10 +11,11 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      title: 'Transparansi DPR Profesional',
       debugShowCheckedModeBanner: false,
-      title: 'Pengawasan DPR',
       theme: ThemeData(
-        primarySwatch: Colors.pink,
+        primarySwatch: Colors.red,
+        fontFamily: 'Inter',
         useMaterial3: true,
       ),
       home: const SplashScreen(),

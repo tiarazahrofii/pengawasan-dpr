@@ -1,10 +1,21 @@
+// Model untuk merepresentasikan data pengguna/user
 class User {
+  final String id;
   final String username;
-  final String password;
-  final String role;
+  final String role; // e.g., 'Admin', 'Presiden', 'Masyarakat'
 
-  User({required this.username, required this.password, required this.role});
+  User({
+    required this.id,
+    required this.username,
+    required this.role,
+  });
 
-  @override
-  String toString() => "User: $username ($role)";
+  // Metode sederhana untuk konversi ke JSON (Map)
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'username': username,
+      'role': role,
+    };
+  }
 }

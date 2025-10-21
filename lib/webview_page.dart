@@ -1,30 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-class WebViewPage extends StatefulWidget {
+class WebviewPage extends StatefulWidget {
   final String url;
-  final String title;
-  const WebViewPage({super.key, required this.url, required this.title});
+  const WebviewPage({super.key, required this.url});
 
   @override
-  State<WebViewPage> createState() => _WebViewPageState();
+  State<WebviewPage> createState() => _WebviewPageState();
 }
 
-class _WebViewPageState extends State<WebViewPage> {
-  late WebViewController _controller;
+class _WebviewPageState extends State<WebviewPage> {
+  late final WebViewController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = WebViewController()..loadRequest(Uri.parse(widget.url));
+
+    // Inisialisasi controller untuk versi webview_flutter 4.x
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted) // JavaScript diizinkan
+      ..loadRequest(Uri.parse(widget.url));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.title),
-        backgroundColor: const Color(0xFF800000),
+        title: const Text('Web View'),
+        backgroundColor: Colors.blueAccent,
       ),
       body: WebViewWidget(controller: _controller),
     );

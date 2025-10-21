@@ -1,35 +1,39 @@
-// lib/models/agenda.dart
 class Agenda {
-  String judul;
-  String deskripsi;
-  String tanggal;
-  String lokasi;
-  String link;
+  final String judul;
+  final String deskripsi;
+  final String tanggal;
+  final String lokasi;
+  final int anggaran;
+  final double rating;
 
   Agenda({
     required this.judul,
     required this.deskripsi,
     required this.tanggal,
-    this.lokasi = '',
-    this.link = '',
+    required this.lokasi,
+    required this.anggaran,
+    required this.rating,
   });
 
-  Map<String, dynamic> toJson() => {
-        'judul': judul,
-        'deskripsi': deskripsi,
-        'tanggal': tanggal,
-        'lokasi': lokasi,
-        'link': link,
-      };
+  factory Agenda.fromJson(Map<String, dynamic> json) {
+    return Agenda(
+      judul: json['judul'] ?? '',
+      deskripsi: json['deskripsi'] ?? '',
+      tanggal: json['tanggal'] ?? '',
+      lokasi: json['lokasi'] ?? '',
+      anggaran: json['anggaran'] ?? 0,
+      rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
 
-  factory Agenda.fromJson(Map<String, dynamic> m) => Agenda(
-        judul: m['judul'] ?? '',
-        deskripsi: m['deskripsi'] ?? '',
-        tanggal: m['tanggal'] ?? '',
-        lokasi: m['lokasi'] ?? '',
-        link: m['link'] ?? '',
-      );
-
-  @override
-  String toString() => 'Agenda(judul: $judul, tanggal: $tanggal)';
+  Map<String, dynamic> toJson() {
+    return {
+      'judul': judul,
+      'deskripsi': deskripsi,
+      'tanggal': tanggal,
+      'lokasi': lokasi,
+      'anggaran': anggaran,
+      'rating': rating,
+    };
+  }
 }
